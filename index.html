@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffe9a8">
+  <meta name="description" content="合成大西瓜：移动瞄准，松手落下，让相同水果碰撞合成。手机、电脑都能玩。">
+  <title>合成大西瓜 🍉</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%233c9639'/%3E%3Cpath d='M5 20a15 15 0 0 0 30 0Z' fill='%23fff1bd'/%3E%3Cpath d='M8 20a12 12 0 0 0 24 0Z' fill='%23ef5955'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="vendor/matter.min.js"></script>
+  <script defer src="physics.js?v=2"></script>
+  <script defer src="game.js?v=2"></script>
+</head>
+<body>
+<main class="game">
+  <header class="heading"><h1>合成大西瓜<span>🍉</span></h1><button id="sound" class="icon-button" aria-label="开启音效" aria-pressed="false" title="开启音效">♪<span class="sound-slash">／</span></button></header>
+  <section class="scoreboard" aria-label="游戏信息">
+    <div><span class="label">当前分数</span><strong id="score">0</strong></div>
+    <div class="best"><span class="label">本机最高</span><strong id="best">0</strong></div>
+    <div class="next"><span class="label">下一颗</span><img id="next" alt="下一颗水果" width="42" height="42"></div>
+  </section>
+  <div class="arena" id="arena">
+    <canvas id="board" width="440" height="680" tabindex="0" aria-label="合成大西瓜游戏区。左右方向键瞄准，空格键投放；鼠标或手指移动瞄准，松开投放。"></canvas>
+    <p id="hint" class="hint">拖动瞄准 · 松手落下</p>
+    <div id="toast" class="toast" role="status"></div>
+    <div id="loading" class="veil"><div class="dialog"><h2>水果准备中…</h2><p id="load-message">马上就能开玩</p><button id="reload" hidden>重新加载</button></div></div>
+    <div id="end" class="veil" hidden><div class="dialog"><span class="eyebrow">这一局，收获满满</span><h2>再来一个大西瓜？</h2><strong id="final-score">0</strong><p>本局得分</p><button id="again">再玩一次</button></div></div>
+    <div id="confirm" class="veil" hidden><div class="dialog"><h2>重新开始？</h2><p>这一局的分数将清零</p><button id="confirm-restart">重新开始</button><button id="cancel" class="secondary">继续玩</button></div></div>
+  </div>
+  <footer><span id="status" aria-live="polite">相同水果碰一碰，变大一点点</span><button id="restart" class="text-button">↻ 重开</button></footer>
+  <section class="evolution" aria-label="水果合成顺序"><div id="fruit-chain"></div><p>从小葡萄，到大西瓜</p></section>
+</main>
+</body>
+</html>
