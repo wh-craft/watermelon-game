@@ -17,7 +17,7 @@
     const {Engine,Bodies,Body,Composite,Events,Sleeping}=Matter;
     const engine=Engine.create({positionIterations:10,velocityIterations:8,enableSleeping:true});
     engine.gravity.y=1.4;
-    let fruits=[],pending=[],score=0,time=0,cooldown=0,over=false,danger=0;
+    let fruits=[],pending=[],score=0,time=0,cooldown=0,over=false,danger=0,supportElapsed=0;
     const walls=[Bodies.rectangle(-30,340,60,1400,{isStatic:true,friction:.4}),Bodies.rectangle(470,340,60,1400,{isStatic:true,friction:.4}),Bodies.rectangle(220,680,560,60,{isStatic:true,friction:.5})];
     Composite.add(engine.world,walls);
     function spawn(level,x,y=44){
@@ -33,26 +33,47 @@
       }
     }
     Events.on(engine,'collisionStart',collide);Events.on(engine,'collisionActive',collide);
+    function wakeUnsupportedFruits(){
+      // A whole touching group can float asleep. Follow contact chains from the
+      // floor rather than treating contact with another floating fruit as support.
+      const supported=new Set(fruits.filter(f=>f.isStatic||f.bounds.max.y>=649));
+      const queue=[...supported];
+      for(let i=0;i<queue.length;i++){
+        const support=queue[i];
+        for(const fruit of fruits){
+          if(supported.has(fruit))continue;
+          const dx=fruit.position.x-support.position.x,dy=fruit.position.y-support.position.y;
+          const reach=RADII[fruit.fruitLevel]+RADII[support.fruitLevel]+.75;
+          if(dx*dx+dy*dy<=reach*reach){supported.add(fruit);queue.push(fruit);}
+        }
+      }
+      for(const fruit of fruits)if(fruit.isSleeping&&!supported.has(fruit))Sleeping.set(fruit,false);
+    }
     function step(dt=1000/120){
       if(over)return;
       time+=dt;cooldown=Math.max(0,cooldown-dt);Engine.update(engine,dt);
+      const mergeEvents=[];
       for(const [a,b] of pending){
         if(!fruits.includes(a)||!fruits.includes(b))continue;
         const level=a.fruitLevel+1,x=(a.position.x+b.position.x)/2,y=Math.min(650-RADII[level],(a.position.y+b.position.y)/2);
         Composite.remove(engine.world,[a,b]);fruits=fruits.filter(f=>f!==a&&f!==b);
         const merged=spawn(level,x,y);Body.setVelocity(merged,{x:(a.velocity.x+b.velocity.x)*.3,y:Math.min(0,(a.velocity.y+b.velocity.y)*.2)});
         score+=(level+1)*(level+2)/2;
-        callbacks.onMerge?.({x:merged.position.x,y,level,score});
+        mergeEvents.push({x:merged.position.x,y,level,score});
       }
       // Removing supports does not automatically wake sleeping bodies in Matter.js.
       // Wake the whole stack once per merge batch so support changes propagate upward.
       if(pending.length)for(const fruit of fruits)Sleeping.set(fruit,false);
       pending=[];
+      supportElapsed+=dt;
+      if(supportElapsed>=100){supportElapsed=0;wakeUnsupportedFruits();}
+      // Rendering callbacks may save progress: expose only a completed merge batch.
+      for(const event of mergeEvents)callbacks.onMerge?.(event);
       const high=fruits.some(f=>time-f.born>1800&&f.position.y-RADII[f.fruitLevel]<100&&(f.isSleeping||f.speed<1.2));
       danger=high?danger+dt:0;
       if(danger>=2000){over=true;callbacks.onEnd?.(score);}
     }
-    function reset(){Composite.clear(engine.world,false);Engine.clear(engine);Composite.add(engine.world,walls);fruits=[];pending=[];score=time=cooldown=danger=0;over=false}
+    function reset(){Composite.clear(engine.world,false);Engine.clear(engine);Composite.add(engine.world,walls);fruits=[];pending=[];score=time=cooldown=danger=supportElapsed=0;over=false}
     function snapshot(){
       return {version:1,score,time,cooldown,danger,fruits:fruits.map(f=>({level:f.fruitLevel,x:f.position.x,y:f.position.y,angle:f.angle,vx:f.velocity.x,vy:f.velocity.y,angularVelocity:f.angularVelocity,isSleeping:f.isSleeping,born:f.born}))};
     }
@@ -61,7 +82,7 @@
       if(!state||state.version!==1||!finite(state.score)||state.score<0||!finite(state.time)||state.time<0||!finite(state.cooldown)||state.cooldown<0||!finite(state.danger)||state.danger<0||!Array.isArray(state.fruits)||state.fruits.length>200||!state.fruits.every(validFruit))return false;
       reset();score=state.score;time=state.time;cooldown=state.cooldown;danger=state.danger;
       for(const saved of state.fruits){
-        const body=spawn(saved.level,saved.x,saved.y);Body.setPosition(body,{x:saved.x,y:saved.y});Body.setVelocity(body,{x:saved.vx,y:saved.vy});Body.setAngle(body,saved.angle);Body.setAngularVelocity(body,saved.angularVelocity);body.born=saved.born;Sleeping.set(body,saved.isSleeping);
+        const body=spawn(saved.level,saved.x,saved.y);Body.setPosition(body,{x:saved.x,y:saved.y});Body.setVelocity(body,{x:saved.vx,y:saved.vy});Body.setAngle(body,saved.angle);Body.setAngularVelocity(body,saved.angularVelocity);body.born=saved.born;Sleeping.set(body,false);
       }
       return true;
     }
